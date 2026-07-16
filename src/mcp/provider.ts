@@ -6,6 +6,7 @@ import { MCP_PROVIDER_ID } from './consts';
 import { readUserMcpServers } from './config';
 import { mergeMcpServers, pickEnabledServers } from './merge';
 import { resolveServerDefinition } from './resolve';
+import { getActiveWorkspaceFolderResource } from '../workspace';
 
 /**
  * VS Code MCP server definition provider.
@@ -75,7 +76,11 @@ export class GlmMcpServerProvider implements vscode.McpServerDefinitionProvider 
 			return server;
 		}
 		try {
-			return await resolveServerDefinition(built, this.authManager, token);
+			// [FORK] The MCP resolve API does not pass a resource, so use the
+			// active workspace folder. This lets multi-root setups resolve the
+			// right credential channel per server (see resolveServerDefinition).
+			const resource = getActiveWorkspaceFolderResource();
+			return await resolveServerDefinition(built, this.authManager, token, resource);
 		} catch (error) {
 			logger.error(`Failed to resolve MCP server "${built.id}"`, error);
 			return undefined;

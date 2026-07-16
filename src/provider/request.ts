@@ -94,6 +94,26 @@ export async function prepareChatRequest({
 	const maxTokens = getMaxTokens();
 	const apiModelId = getApiModelId(modelInfo.id, configurationResource);
 	const visionMode = getModelVisionMode(modelInfo.id, configurationResource);
+	const tools = prepareRequestTools(modelDef?.capabilities.toolCalling, options);
+
+	// [FORK] Detect the mcp vision mode + no-available-tools conflict BEFORE
+	// touching images. mcp mode strips images to disk and relies on an
+	// image-capable MCP tool to read them back; if the model has tool calling
+	// disabled (capabilities.toolCalling falsy) OR the user disabled tools in
+	// the chat configureTools panel (options.tools empty), the stripped images
+	// would be silently lost with no way for the model to recover them.
+	// Refuse the request with a clear notice instead. Pure-text requests are
+	// unaffected — the check only fires when there are image parts to lose.
+	if (visionMode === 'mcp' && (!tools || tools.length === 0)) {
+		const hasImages = messages.some((m) =>
+			(m.content as readonly vscode.LanguageModelInputPart[]).some(
+				(p) => p instanceof vscode.LanguageModelDataPart && p.mimeType.startsWith('image/'),
+			),
+		);
+		if (hasImages) {
+			throw new Error(t('vision.mcp.conflict.toolCallingDisabled'));
+		}
+	}
 
 	const visionResolution = await resolveImageMessages(
 		messages,
@@ -118,7 +138,6 @@ export async function prepareChatRequest({
 	if (visionMode === 'mcp') {
 		injectImageToolGuidance(glmMessages);
 	}
-	const tools = prepareRequestTools(modelDef?.capabilities.toolCalling, options);
 
 	const baseRequest: GLMRequest = {
 		model: apiModelId,
@@ -229,12 +248,12 @@ const DEFAULT_IMAGE_HANDLING_INSTRUCTION =
 	'Before processing an image, decide whether you can reuse an existing analysis or must process it again. ' +
 	'The decision has TWO dimensions, checked in this order:\n\n' +
 	'(1) Output-type match (PRIMARY). Every image task has an output type — what the user wants back. ' +
-	'Common output types (non-exhaustive; infer from the user\'s goal, not from keywords): ' +
+	"Common output types (non-exhaustive; infer from the user's goal, not from keywords): " +
 	'understand/describe (what is in this image), convert/generate (turn this UI into code, prompt, or spec), ' +
 	'compare (design vs implementation, find differences), extract (text/code/error from a screenshot), ' +
 	'diagnose (error screenshot, stack trace), or general/uncertain. ' +
-	'Reusing a prior analysis is valid only when the current task\'s output type MATCHES the output type that analysis was produced for. ' +
-	'If the user\'s requested output type differs from what the prior analysis/digest supports — ' +
+	"Reusing a prior analysis is valid only when the current task's output type MATCHES the output type that analysis was produced for. " +
+	"If the user's requested output type differs from what the prior analysis/digest supports — " +
 	'for example you previously described the image (understand) and now the user asks you to replicate it into code (convert/generate) — ' +
 	'you MUST NOT reuse the description; choose the tool best matched to the new output type and process the image again, ' +
 	'even if you already know the image contents well. ' +
@@ -244,7 +263,7 @@ const DEFAULT_IMAGE_HANDLING_INSTRUCTION =
 	'(b) the current question needs detail the prior analysis did not cover; or\n' +
 	'(c) the image may have changed since (for example, the user edited the UI and re-captured it).\n' +
 	'When in doubt about output type, treat it as not-yet-processed and process with the most appropriate tool.\n\n' +
-	'For the FIRST analysis of an image (no prior analysis exists), choose the tool best matched to the task\'s output type directly — ' +
+	"For the FIRST analysis of an image (no prior analysis exists), choose the tool best matched to the task's output type directly — " +
 	'do not default to a general-purpose tool when a more specific tool fits the intent.\n\n' +
 	'After you process an image, end with a one-line digest so later turns can reuse it without re-processing:\n' +
 	'[Image digest | <label/path> | <image type: ui-mockup | error-screenshot | diagram | …> | <output type: understand | convert | compare | extract | diagnose | …> | <key facts: layout, colors, text, sizes, errors> | <open questions>]\n' +

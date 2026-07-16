@@ -37,8 +37,10 @@ export const GLM_OFFICIAL_MCP_ENDPOINTS = {
 	zread: 'https://open.bigmodel.cn/api/mcp/zread/mcp',
 } as const;
 
-/** GLM official stdio MCP server package. */
+/** GLM official stdio MCP server package. Version pinned for supply-chain
+ * safety: `npx -y <pkg>@<version>` prevents auto-running future unreviewed
+ * releases with the user's API key. Bump intentionally after auditing. */
 export const GLM_OFFICIAL_MCP_STDIO = {
 	command: 'npx',
-	args: ['-y', '@z_ai/mcp-server'],
+	args: ['-y', '@z_ai/mcp-server@0.1.4'],
 } as const;

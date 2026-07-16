@@ -23,9 +23,7 @@ import type { McpServerConfig, McpServerConfigMap } from './types';
  * This function is pure except for reading VS Code settings (built-in
  * checkboxes). Used by `provideMcpServerDefinitions` to compute the live list.
  */
-export function mergeMcpServers(
-	userConfig: Readonly<McpServerConfigMap>,
-): McpServerConfigMap {
+export function mergeMcpServers(userConfig: Readonly<McpServerConfigMap>): McpServerConfigMap {
 	const merged: McpServerConfigMap = {};
 
 	// 1. Built-in servers: field-level override + checkbox-driven enabled.

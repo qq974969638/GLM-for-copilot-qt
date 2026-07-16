@@ -83,19 +83,12 @@ export const MODELS: ModelDefinition[] = [
 		},
 		requiresThinkingParam: true,
 		supportsReasoningEffort: true,
-		// [FORK] route GLM-5.2 to the domestic Anthropic-compatible endpoint
-		// (open.bigmodel.cn/api/anthropic, anthropic wire protocol) by default.
-		// Declared on the built-in model definition so it survives
-		// "GLM: Reset to Defaults" — upstream's effective-config resolution does
-		// NOT read package.json `default`, only built-in defs + explicit overrides.
-		// NOTE: this sends GLM-5.2 over the Anthropic protocol; verify the
-		// /api/anthropic gateway accepts the glm-5.2 model id for your Coding Plan.
-		defaultEndpointRoute: 'china-anthropic',
-		// [FORK] default to mcp vision mode: images are stripped to disk and read
-		// by MCP tools, not via the built-in proxy. Upstream's effective-config
-		// resolution does not read package.json `default`, so this must be set
-		// on the model definition itself for the fallback path to return 'mcp'.
-		defaultVisionMode: 'mcp',
+		// [FORK] No model-level default route/vision override here — fork
+		// preferences (china-anthropic + mcp vision) are applied via the
+		// "GLM: Apply Recommended Setup for GLM Coding Plan" command, which
+		// writes user-scope modelManagement overrides. Keeping built-in defaults
+		// aligned with upstream so international users / custom proxies are
+		// unaffected.
 		pricing: {
 			CNY: { cacheHitInput: 2, cacheMissInput: 8, output: 28 },
 			USD: { cacheHitInput: 0.26, cacheMissInput: 1.4, output: 4.4 },
@@ -184,8 +177,6 @@ export const MODELS: ModelDefinition[] = [
 			thinking: true,
 		},
 		requiresThinkingParam: true,
-		// [FORK] default to mcp vision mode (same rationale as glm-5.2 above).
-		defaultVisionMode: 'mcp',
 		pricing: {
 			CNY: {
 				cacheHitInput: 1.2,
@@ -212,37 +203,4 @@ export const MODELS: ModelDefinition[] = [
 		},
 		priceCategory: 'medium',
 	},
-	// [FORK] Built-in Claude-compatible text model. Declared in MODELS so it is
-	// always present (survives reset) without relying on modelManagement config.
-	// - picker/model id: glm-claude-opus-4.8
-	// - api model id sent to endpoint: glm-5.2[1m] (via defaultApiModelId)
-	// - default route: china-anthropic (Claude-compatible Anthropic endpoint)
-	// - imageInput MUST be true so Copilot allows image attachment; visionMode
-	//   'mcp' then strips images to disk for MCP tools (the model itself is
-	//   text-only and never sees base64).
-	// {
-	// 	id: 'glm-claude-opus-4.8',
-	// 	name: 'GLM Claude Opus 4.8 (GLM bridge)',
-	// 	family: 'glm',
-	// 	version: '5.2[1m]',
-	// 	detail: 'Simulate "claude code" call requests to achieve traffic acceleration.',
-	// 	maxInputTokens: 868_928,
-	// 	maxOutputTokens: 131_072,
-	// 	capabilities: {
-	// 		toolCalling: GLM_TOOLS_LIMIT,
-	// 		imageInput: true,
-	// 		thinking: true,
-	// 	},
-	// 	requiresThinkingParam: true,
-	// 	supportsReasoningEffort: true,
-	// 	defaultApiModelId: 'claude-opus-4.8',
-	// 	defaultEndpointRoute: 'china-anthropic',
-	// 	defaultVisionMode: 'mcp',
-	// 	pricing: {
-	// 		CNY: { cacheHitInput: 2, cacheMissInput: 8, output: 28 },
-	// 		USD: { cacheHitInput: 0.26, cacheMissInput: 1.4, output: 4.4 },
-	// 	},
-	// 	priceCategory: 'high',
-	// }
-
 ];

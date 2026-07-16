@@ -25,13 +25,19 @@ export interface BuiltServer {
  *
  * Invalid configs (e.g. stdio without command, http without URL) are skipped.
  */
-export function buildServerDefinitions(
-	map: Readonly<McpServerConfigMap>,
-): BuiltServer[] {
+export function buildServerDefinitions(map: Readonly<McpServerConfigMap>): BuiltServer[] {
 	const result: BuiltServer[] = [];
+	// [FORK] De-duplicate labels within this collection. VS Code 1.116 resolves
+	// a server definition by `find(server => server.label === label)`, so two
+	// different config ids sharing a label would cause the second server to be
+	// resolved against the first one's URL/command/auth. To stay safe while
+	// keeping labels readable, the first occurrence keeps its label and any
+	// later collision gets ` (<id>)` appended.
+	const seenLabels = new Set<string>();
 	for (const [id, config] of Object.entries(map)) {
-		const definition = buildOne(id, config);
+		const definition = buildOne(id, config, seenLabels);
 		if (definition) {
+			seenLabels.add(definition.label);
 			result.push({ id, config, definition });
 		}
 	}
@@ -41,8 +47,13 @@ export function buildServerDefinitions(
 function buildOne(
 	id: string,
 	config: McpServerConfig,
+	seenLabels: ReadonlySet<string>,
 ): vscode.McpServerDefinition | undefined {
-	const label = config.label ?? id;
+	const baseLabel = config.label ?? id;
+	// [FORK] Disambiguate duplicate labels by appending the stable config id.
+	// This keeps the first label readable and makes collisions explicit
+	// instead of silently misrouting to the wrong server.
+	const label = seenLabels.has(baseLabel) ? `${baseLabel} (${id})` : baseLabel;
 	if (config.type === 'stdio') {
 		const command = config.command?.trim();
 		if (!command) {
@@ -82,12 +93,16 @@ export function resolveAuthEnvKey(config: McpServerConfig): string {
 
 /**
  * Whether this server wants the API key injected at resolve time.
+ *
+ * [FORK] This is an explicit opt-in: the key is injected ONLY when
+ * `config.injectApiKey === true`. User-defined servers default to no
+ * injection (the field is `undefined`), so BYOK credentials never leak to
+ * third-party processes or URLs without the user explicitly requesting it.
+ * Built-in GLM official servers set `injectApiKey: true` in `builtin.ts`.
+ *
+ * The transport type (stdio vs http) only affects HOW the key is injected
+ * (env var vs Authorization header), not WHETHER it is injected.
  */
 export function wantsApiKeyInjection(config: McpServerConfig): boolean {
-	if (config.type === 'stdio') {
-		// stdio always injects into env unless explicitly disabled.
-		return true;
-	}
-	// http injects as Bearer unless authScheme === 'none'.
-	return config.authScheme !== 'none';
+	return config.injectApiKey === true;
 }

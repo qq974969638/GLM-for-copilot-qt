@@ -7,6 +7,8 @@
  * these by `./build`.
  */
 
+import type { CredentialChannel } from '../types';
+
 /** MCP server transport type, mirroring the official `mcp.json` schema. */
 export type McpServerType = 'stdio' | 'http';
 
@@ -49,17 +51,36 @@ export interface McpServerConfig {
 	// ---- auth injection hints ----
 
 	/**
+	 * [FORK] Whether to inject the GLM API key into this server at resolve time.
+	 *
+	 * This is an explicit opt-in field: defaults to `false` (NO key injection)
+	 * so user-defined servers never silently receive BYOK credentials. Built-in
+	 * GLM official servers set this to `true` because they are first-party.
+	 *
+	 * For stdio servers, when `true`, the key is written into
+	 * `env[<authEnvKey>]` (defaults to `Z_AI_API_KEY`).
+	 * For http servers, when `true`, the key is written as
+	 * `Authorization: Bearer <key>` into the request headers.
+	 */
+	injectApiKey?: boolean;
+
+	/**
 	 * For stdio servers: the env variable name into which the GLM API key
 	 * should be injected at resolve time. Defaults to `Z_AI_API_KEY`.
+	 * Third-party / international MCP services may read a different variable
+	 * name (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`); set this accordingly.
 	 */
 	authEnvKey?: string;
 
 	/**
-	 * For http servers: when `authScheme` is `bearer`, the key is injected as
-	 * `Authorization: Bearer <key>` into the request headers.
-	 * Set to `none` to disable key injection (e.g. for public servers).
+	 * [FORK] Which credential channel the API key should be read from.
+	 *
+	 * Built-in GLM official servers pin this to `'china-coding'` because their
+	 * endpoints are hosted on open.bigmodel.cn. User-defined servers that omit
+	 * this field fall back to the workspace's default connection channel, so
+	 * international users can use their own configured channel automatically.
 	 */
-	authScheme?: 'bearer' | 'none';
+	credentialChannel?: CredentialChannel;
 }
 
 /** Map of server id → config, matching the `glm-copilot.mcp.servers` object shape. */

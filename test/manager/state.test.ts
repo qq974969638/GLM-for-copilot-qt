@@ -638,8 +638,9 @@ describe('model manager state', () => {
 		});
 		expect(state.models.find((model) => model.id === 'glm-5.2')).toMatchObject({
 			apiModelId: 'glm-5.2',
-			// [FORK] glm-5.2 built-in defaultVisionMode is now 'mcp'.
-			visionMode: 'mcp',
+			// [FORK] glm-5.2 built-in defaultVisionMode was removed (aligned with
+			// upstream); reset therefore yields the upstream default 'proxy'.
+			visionMode: 'proxy',
 			canReset: false,
 		});
 	});

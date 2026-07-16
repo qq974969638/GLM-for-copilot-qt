@@ -2,6 +2,7 @@ import vscode from 'vscode';
 import { CONFIG_SECTION } from '../consts';
 import { BUILTIN_MCP_ENABLED_KEYS, MCP_CONFIG_KEY } from './consts';
 import type { McpServerConfig, McpServerConfigMap } from './types';
+import type { CredentialChannel } from '../types';
 
 /**
  * Read the raw user-facing MCP server configuration from settings.
@@ -111,11 +112,25 @@ function sanitizeServerConfig(raw: unknown): McpServerConfig | undefined {
 		if (typeof obj.url === 'string' && obj.url.trim()) {
 			config.url = obj.url;
 		}
-		if (obj.authScheme === 'bearer' || obj.authScheme === 'none') {
-			config.authScheme = obj.authScheme;
-		}
+	}
+	// [FORK] Shared auth-injection fields apply to both stdio and http.
+	if (typeof obj.injectApiKey === 'boolean') {
+		config.injectApiKey = obj.injectApiKey;
+	}
+	if (isCredentialChannel(obj.credentialChannel)) {
+		config.credentialChannel = obj.credentialChannel;
 	}
 	return config;
+}
+
+/** [FORK] Type guard for the four supported credential channels. */
+function isCredentialChannel(value: unknown): value is CredentialChannel {
+	return (
+		value === 'china-coding' ||
+		value === 'china-standard' ||
+		value === 'international-coding' ||
+		value === 'international-standard'
+	);
 }
 
 /**
@@ -128,7 +143,8 @@ function sanitizeServerConfig(raw: unknown): McpServerConfig | undefined {
  * avoid two conflicting sources of truth.
  *
  * @param id A built-in server id (must be one of BUILTIN_MCP_ENABLED_KEYS).
- * @returns `true` by default when unset, otherwise the configured value.
+ * @returns `false` by default when unset (built-in servers are opt-in),
+ *          otherwise the configured value.
  */
 export function readBuiltinServerEnabled(id: string): boolean {
 	const settingKey = BUILTIN_MCP_ENABLED_KEYS[id as keyof typeof BUILTIN_MCP_ENABLED_KEYS];
@@ -137,6 +153,10 @@ export function readBuiltinServerEnabled(id: string): boolean {
 		return true;
 	}
 	const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-	const value = config.get<boolean>(settingKey, true);
+	// [FORK] Default to false: built-in MCP servers are opt-in. Users enable
+	// them via "GLM: Apply Recommended Setup for Coding Plan" or the settings
+	// checkboxes. This avoids sending BYOK keys to MCP services without
+	// explicit consent on install/upgrade.
+	const value = config.get<boolean>(settingKey, false);
 	return value;
 }

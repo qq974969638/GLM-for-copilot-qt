@@ -9,7 +9,6 @@ import {
 	IMAGE_DESCRIPTION_SUFFIX,
 	IMAGE_DESCRIPTION_UNAVAILABLE,
 } from './consts';
-import { logger } from '../../logger'; // [FORK] mcp mode logging
 import { logVisionProxyDescribeFailed, logVisionProxyUnavailable } from './log';
 import { buildImagePromptText, storeImage } from './image-store'; // [FORK] mcp mode
 import { prepareNativeImageMessages } from './native';
@@ -411,74 +410,91 @@ async function stripImagesForMcpMode(
 	token: vscode.CancellationToken,
 	stats: VisionResolutionStats,
 ): Promise<VisionResolutionResult> {
-	const result: vscode.LanguageModelChatRequestMessage[] = [];
+	// [FORK] Collect per-part replacements indexed by (messageIndex, partIndex)
+	// and apply them in place — mirroring how `prepareNativeImageMessages`
+	// preserves the original text/image interleaving. The earlier version
+	// gathered all non-image parts and appended image-path text to the end of
+	// each message, which destroyed the original ordering for interleaved
+	// text/image parts (e.g. "请分析这张图" + image became a single merged
+	// string with no separator).
+	const replacements: McpImageReplacement[] = [];
 
-	for (const message of messages) {
-		const imageParts = getImageParts(message);
-		if (imageParts.length === 0) {
-			result.push(message as vscode.LanguageModelChatRequestMessage);
-			continue;
-		}
-
-		const nonImageParts = getNonImageParts(message);
-		const stored = await storeImagesAndBuildText(imageParts, token);
-		stats.droppedImageParts += imageParts.length;
-
-		if (stored) {
-			result.push(
-				createResolvedMessage(message, [...nonImageParts, ...stored.textParts]),
-			);
-		} else {
-			// Storage failed — fall back to an unavailable marker. Never keep
-			// base64 in context: it would bloat text models with no benefit.
-			logVisionProxyUnavailable();
-			stats.unavailableImageMessages += 1;
-			result.push(
-				createResolvedMessage(message, [
-					...nonImageParts,
-					new vscode.LanguageModelTextPart(IMAGE_DESCRIPTION_UNAVAILABLE),
-				]),
-			);
+	for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
+		const message = messages[messageIndex];
+		const content = message.content as readonly vscode.LanguageModelInputPart[];
+		// Sequential index of image parts WITHIN this message, for "Image n of m" labels.
+		let imageOrdinal = 0;
+		const imageCount = content.filter(isImageDataPart).length;
+		for (let partIndex = 0; partIndex < content.length; partIndex += 1) {
+			const part = content[partIndex];
+			if (!isImageDataPart(part)) {
+				continue;
+			}
+			const filePath = await storeImage(part.data, part.mimeType, token);
+			stats.droppedImageParts += 1;
+			if (filePath) {
+				replacements.push({
+					messageIndex,
+					partIndex,
+					part: new vscode.LanguageModelTextPart(
+						// Prepend a newline so the image-path prompt is never
+						// concatenated to adjacent text without a separator.
+						'\n' + buildImagePromptText(filePath, imageOrdinal, imageCount),
+					),
+				});
+			} else {
+				// Storage failed — fall back to an unavailable marker. Never keep
+				// base64 in context: it would bloat text models with no benefit.
+				logVisionProxyUnavailable();
+				stats.unavailableImageMessages += 1;
+				replacements.push({
+					messageIndex,
+					partIndex,
+					part: new vscode.LanguageModelTextPart('\n' + IMAGE_DESCRIPTION_UNAVAILABLE),
+				});
+			}
+			imageOrdinal += 1;
 		}
 	}
 
 	return {
-		messages: result,
+		messages: applyMcpImageReplacements(messages, replacements),
 		stats,
 		replayMarkerMetadata: {},
 	};
 }
 
-/**
- * Persist image parts to temporary files and build text prompt parts that
- * tell the model where to find each image on disk.
- *
- * Returns `undefined` if storage is unavailable (not initialized or write
- * failure for any image). In that case the caller falls back to the
- * unavailable-marker path — NOT base64.
- *
- * The resulting text is ~50 tokens per image vs ~50K+ tokens for base64.
- */
-async function storeImagesAndBuildText(
-	imageParts: readonly vscode.LanguageModelDataPart[],
-	token: vscode.CancellationToken,
-): Promise<{ textParts: vscode.LanguageModelTextPart[] } | undefined> {
-	const textParts: vscode.LanguageModelTextPart[] = [];
+interface McpImageReplacement {
+	messageIndex: number;
+	partIndex: number;
+	part: vscode.LanguageModelInputPart;
+}
 
-	for (let i = 0; i < imageParts.length; i++) {
-		if (token.isCancellationRequested) {
-			return undefined;
+/** Apply per-(message,part) replacements in place, preserving all other parts. */
+function applyMcpImageReplacements(
+	messages: readonly vscode.LanguageModelChatRequestMessage[],
+	replacements: readonly McpImageReplacement[],
+): readonly vscode.LanguageModelChatRequestMessage[] {
+	const byMessage = new Map<number, Map<number, vscode.LanguageModelInputPart>>();
+	for (const replacement of replacements) {
+		let bucket = byMessage.get(replacement.messageIndex);
+		if (!bucket) {
+			bucket = new Map<number, vscode.LanguageModelInputPart>();
+			byMessage.set(replacement.messageIndex, bucket);
 		}
-		const part = imageParts[i];
-		const filePath = await storeImage(part.data, part.mimeType);
-		if (!filePath) {
-			logger.warn(
-				`Failed to store image ${i + 1}/${imageParts.length} to file; falling back to unavailable marker`,
-			);
-			return undefined;
-		}
-		textParts.push(new vscode.LanguageModelTextPart(buildImagePromptText(filePath, i, imageParts.length)));
+		bucket.set(replacement.partIndex, replacement.part);
 	}
-
-	return textParts.length > 0 ? { textParts } : undefined;
+	return messages.map((message, messageIndex) => {
+		const bucket = byMessage.get(messageIndex);
+		if (!bucket) {
+			return message;
+		}
+		return {
+			role: message.role,
+			content: (message.content as readonly vscode.LanguageModelInputPart[]).map(
+				(part, partIndex) => bucket.get(partIndex) ?? part,
+			),
+			name: message.name,
+		} as unknown as vscode.LanguageModelChatRequestMessage;
+	});
 }

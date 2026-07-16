@@ -79,8 +79,11 @@ describe('configuration helpers', () => {
 
 	it('defaults GLM-4.6V-Flash to native image input and other models to the proxy', () => {
 		expect(getModelVisionMode('glm-4.6v-flash')).toBe('native');
-		// [FORK] glm-5.2 / glm-5-turbo default to 'mcp' (built-in defaultVisionMode).
-		expect(getModelVisionMode('glm-5.2')).toBe('mcp');
+		// [FORK] built-in defaultVisionMode was removed for glm-5.2 / glm-5-turbo
+		// (defaults align with upstream now); fork's mcp preference is applied
+		// via the "GLM: Apply Recommended Setup for Coding Plan" command instead.
+		expect(getModelVisionMode('glm-5.2')).toBe('proxy');
+		expect(getModelVisionMode('glm-5-turbo')).toBe('proxy');
 		expect(getModelVisionMode('custom-model')).toBe('proxy');
 	});
 
@@ -124,21 +127,18 @@ describe('configuration helpers', () => {
 	it('applies global baseUrl only to models using the default route', () => {
 		__setConfigurationValue('glm-copilot.baseUrl', 'https://proxy.example.com/v1');
 
-		// [FORK] glm-5.2 now has a built-in defaultEndpointRoute ('china-anthropic'),
-		// so it no longer uses the 'default' route. Use glm-5-turbo (still
-		// default-route) as the example of a model that picks up the global baseUrl.
+		// [FORK] glm-5.2 / glm-5-turbo use the 'default' route again (their
+		// built-in defaultEndpointRoute was removed to keep fork defaults aligned
+		// with upstream), so both pick up the global baseUrl override.
 		expect(resolveModelConnection('glm-5-turbo')).toMatchObject({
 			baseUrl: 'https://proxy.example.com/v1',
 			usesGlobalBaseUrlOverride: true,
 			apiMode: undefined,
 			pricingCurrency: undefined,
 		});
-		// [FORK] glm-5.2 has an explicit built-in route, so the global baseUrl
-		// override does NOT apply to it.
 		expect(resolveModelConnection('glm-5.2')).toMatchObject({
-			baseUrl: GLM_CN_ANTHROPIC_BASE_URL,
-			endpoint: 'china-anthropic',
-			usesGlobalBaseUrlOverride: false,
+			baseUrl: 'https://proxy.example.com/v1',
+			usesGlobalBaseUrlOverride: true,
 		});
 		expect(resolveModelConnection('glm-5v-turbo')).toMatchObject({
 			baseUrl: GLM_CN_GENERAL_BASE_URL,
