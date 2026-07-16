@@ -76,11 +76,12 @@ describe('model metadata helpers', () => {
 	});
 
 	it('publishes built-in shared windows as Copilot input plus output budgets', () => {
-		// [FORK] MODELS now includes glm-claude-opus-4.8 (868928 input + 131072
-		// output, synced to GLM-5.2) and glm-5v-turbo no longer has
-		// supportedApiModes (route unlocked).
+		// [FORK] 4 built-in models are active. glm-claude-opus-4.8 is declared but
+		// commented out in consts.ts (kept as a documented template for the
+		// china-anthropic bridge; enable by uncommenting). glm-5v-turbo no longer
+		// has supportedApiModes (route unlocked).
 		expect(MODELS.map((model) => model.maxInputTokens + model.maxOutputTokens)).toEqual([
-			1_000_000, 131_072, 200_000, 200_000, 1_000_000,
+			1_000_000, 131_072, 200_000, 200_000,
 		]);
 		expect(MODELS[1].maxOutputTokens).toBe(32_768);
 		expect(toChatInfo(MODELS[0], true).maxInputTokens).toBe(868_928);
@@ -93,16 +94,9 @@ describe('model metadata helpers', () => {
 		});
 		// [FORK] glm-5v-turbo route restriction removed
 		expect(MODELS[2].supportedApiModes).toBeUndefined();
-		// [FORK] new built-in glm-claude-opus-4.8
-		expect(MODELS[4]).toMatchObject({
-			id: 'glm-claude-opus-4.8',
-			defaultApiModelId: 'claude-opus-4.8',
-			defaultEndpointRoute: 'china-anthropic',
-			defaultVisionMode: 'mcp',
-			// [FORK] imageInput true so Copilot allows image attachment; visionMode
-			// mcp then strips images to disk for MCP tools (model itself is text-only).
-			capabilities: { imageInput: true, thinking: true },
-		});
+		// [FORK] glm-claude-opus-4.8 is currently commented out in consts.ts;
+		// to re-enable, uncomment its block there and restore the MODELS[4]
+		// assertions (id/defaultApiModelId/defaultEndpointRoute/defaultVisionMode).
 	});
 
 	it('includes custom models in picker metadata with Vision Proxy image support', () => {
