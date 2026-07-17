@@ -70,17 +70,20 @@ async function resetToDefaults(): Promise<void> {
 		'mcp.web-search-prime.enabled',
 		'mcp.web-reader.enabled',
 		'mcp.zread.enabled',
+		'mcp.imageCleanupMode',
 		'imageHandlingPrompt',
 		'imageStoredPrompt',
 	];
 
 	let cleared = 0;
+	const errors: string[] = []; // [FORK] collect failures for diagnostics
 	for (const key of keysToReset) {
 		try {
 			await config.update(key, undefined, target);
 			cleared += 1;
 		} catch (error) {
 			logger.warn(`Failed to reset "${key}"`, error);
+			errors.push(`${key}: ${toErrorMessage(error)}`);
 		}
 	}
 
@@ -90,8 +93,17 @@ async function resetToDefaults(): Promise<void> {
 		cleared += 1;
 	} catch (error) {
 		logger.warn('Failed to reset modelManagement', error);
+		errors.push(`modelManagement: ${toErrorMessage(error)}`);
 	}
 
+	// [FORK] If everything failed, surface the actual reasons instead of a
+	// silent "0 items reset" that hides the root cause.
+	if (cleared === 0 && errors.length > 0) {
+		void vscode.window.showErrorMessage(
+			`Reset failed (0/${keysToReset.length + 1}). Reasons:\n${errors.join('\n')}`,
+		);
+		return;
+	}
 	void vscode.window.showInformationMessage(t('command.resetToDefaults.done', cleared));
 }
 
@@ -155,6 +167,7 @@ async function applyCodingPlanPreset(): Promise<void> {
 	}
 
 	let written = 0;
+	const errors: string[] = []; // [FORK] collect failures for diagnostics
 	const target = vscode.ConfigurationTarget.Global;
 
 	// 1. Merge Coding Plan model overrides onto the effective modelManagement
@@ -187,6 +200,7 @@ async function applyCodingPlanPreset(): Promise<void> {
 		written += 1;
 	} catch (error) {
 		logger.warn('Failed to apply Coding Plan preset to modelManagement', error);
+		errors.push(`modelManagement: ${toErrorMessage(error)}`);
 	}
 
 	// 2. Enable stabilizeToolList (Coding Plan benefits from a stable tool list).
@@ -196,6 +210,7 @@ async function applyCodingPlanPreset(): Promise<void> {
 		written += 1;
 	} catch (error) {
 		logger.warn('Failed to enable stabilizeToolList', error);
+		errors.push(`stabilizeToolList: ${toErrorMessage(error)}`);
 	}
 
 	// 3. Enable all built-in MCP servers via their dedicated checkbox settings.
@@ -206,9 +221,19 @@ async function applyCodingPlanPreset(): Promise<void> {
 			written += 1;
 		} catch (error) {
 			logger.warn(`Failed to enable MCP server "${id}"`, error);
+			errors.push(`mcp.${id}.enabled: ${toErrorMessage(error)}`);
 		}
 	}
 
+	// [FORK] If everything failed, surface the actual reasons instead of a
+	// silent "0 items written" that hides the root cause.
+	const totalOps = 2 + Object.keys(BUILTIN_MCP_SERVERS).length;
+	if (written === 0 && errors.length > 0) {
+		void vscode.window.showErrorMessage(
+			`Apply preset failed (0/${totalOps}). Reasons:\n${errors.join('\n')}`,
+		);
+		return;
+	}
 	void vscode.window.showInformationMessage(t('command.applyCodingPlanPreset.done', written));
 }
 
@@ -233,4 +258,19 @@ async function cleanupStoredImages(): Promise<void> {
 		logger.warn('Failed to clean up stored images', error);
 		void vscode.window.showErrorMessage(t('command.cleanupStoredImages.failed'));
 	}
+}
+
+/**
+ * [FORK] Reduce an unknown caught value to a short human-readable message,
+ * used when surfacing command failures to the user (debugging the
+ * "0 items written" / "0 items reset" symptom).
+ */
+function toErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (typeof error === 'string') {
+		return error;
+	}
+	return String(error);
 }
