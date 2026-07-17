@@ -81,8 +81,10 @@ describe('model metadata helpers', () => {
 		// coming back; if a similar model is needed, add it as a built-in in
 		// consts.ts and let the user map its endpoint id via the "API model ID"
 		// field in Manage Models. glm-5v-turbo no longer has supportedApiModes
-		// (route unlocked).
-		expect(MODELS.map((model) => model.maxInputTokens + model.maxOutputTokens)).toEqual([
+		// (route unlocked). The Claude-session variant (`glm-5.2-claude`) is
+		// session-targeted and excluded here — it duplicates glm-5.2's budget.
+		const canonical = MODELS.filter((model) => !model.targetChatSessionType);
+		expect(canonical.map((model) => model.maxInputTokens + model.maxOutputTokens)).toEqual([
 			1_000_000, 131_072, 200_000, 200_000,
 		]);
 		expect(MODELS[1].maxOutputTokens).toBe(32_768);
@@ -96,6 +98,24 @@ describe('model metadata helpers', () => {
 		});
 		// [FORK] glm-5v-turbo route restriction removed
 		expect(MODELS[2].supportedApiModes).toBeUndefined();
+	});
+
+	it('[FORK] exposes a Claude-session variant that targets claude-code and routes to glm-5.2', () => {
+		const variant = MODELS.find((model) => model.id === 'glm-5.2-claude');
+		expect(variant).toBeDefined();
+		expect(variant).toMatchObject({
+			targetChatSessionType: 'claude-code',
+			defaultApiModelId: 'glm-5.2',
+			family: 'glm',
+			capabilities: { toolCalling: expect.anything(), thinking: true },
+		});
+		// The variant shares glm-5.2's budget but is excluded from the general picker.
+		expect(variant?.maxInputTokens).toBe(868_928);
+		expect(variant?.maxOutputTokens).toBe(131_072);
+		// toChatInfo must propagate targetChatSessionType to the picker-facing info.
+		expect(toChatInfo(variant!, true).targetChatSessionType).toBe('claude-code');
+		// A non-targeted model must NOT set targetChatSessionType.
+		expect(toChatInfo(MODELS[0], true).targetChatSessionType).toBeUndefined();
 	});
 
 	it('includes custom models in picker metadata with Vision Proxy image support', () => {

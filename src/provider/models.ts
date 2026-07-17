@@ -34,6 +34,8 @@ export type ModelPickerChatInformation = vscode.LanguageModelChatInformation &
 		readonly statusIcon?: vscode.ThemeIcon;
 		readonly configurationSchema?: ThinkingEffortConfigurationSchema;
 		readonly configurationResource?: string;
+		/** [FORK] VS Code proposed API — restricts the model to a chat session type's picker. */
+		readonly targetChatSessionType?: string;
 	};
 
 export function toChatInfo(
@@ -65,6 +67,8 @@ export function toChatInfo(
 		},
 		...toModelCostInfo(m, pricingCurrency),
 		...(m.capabilities.thinking ? { configurationSchema: buildThinkingEffortSchema() } : {}),
+		// [FORK] VS Code proposed API: only show this model in the matching session type.
+		...(m.targetChatSessionType ? { targetChatSessionType: m.targetChatSessionType } : {}),
 	};
 }
 

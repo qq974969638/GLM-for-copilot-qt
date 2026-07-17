@@ -1,6 +1,7 @@
 import vscode from 'vscode';
 import { AuthManager, CREDENTIAL_CHANNELS, formatCredentialChannel } from '../auth';
 import {
+	getClaudeSessionAttach,
 	getStabilizeToolListEnabled,
 	listProviderModels,
 	resolveDefaultConnection,
@@ -99,7 +100,8 @@ export class GLMChatProvider implements vscode.LanguageModelChatProvider<ModelPi
 				if (
 					affectsUsageEndpoint ||
 					e.affectsConfiguration(`${CONFIG_SECTION}.customModels`) ||
-					e.affectsConfiguration(`${CONFIG_SECTION}.modelIdOverrides`)
+					e.affectsConfiguration(`${CONFIG_SECTION}.modelIdOverrides`) ||
+					e.affectsConfiguration(`${CONFIG_SECTION}.claudeSession.attach`) // [FORK]
 				) {
 					this.refreshModelPicker();
 				}
@@ -262,8 +264,13 @@ export class GLMChatProvider implements vscode.LanguageModelChatProvider<ModelPi
 		}
 
 		const configurationResource = getActiveWorkspaceFolderResource();
+		// [FORK] Session-targeted models (e.g. the Claude variant) are emitted
+		// only when `glm-copilot.claudeSession.attach` is enabled.
+		const providerModels = listProviderModels(configurationResource).filter(
+			(model) => !model.targetChatSessionType || getClaudeSessionAttach(),
+		);
 		return Promise.all(
-			listProviderModels(configurationResource).map(async (model) => {
+			providerModels.map(async (model) => {
 				try {
 					const connection = resolveModelConnection(model.id, configurationResource);
 					const hasKey = await this.authManager.hasApiKey(

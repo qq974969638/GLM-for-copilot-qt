@@ -63,38 +63,44 @@ export const WALKTHROUGH_ID = 'umbrella22.glm-for-copilot#glmGettingStarted';
 
 // ---- Model registry ----
 
+/**
+ * [FORK] Flagship model extracted to a named const so the Claude-session
+ * variant below can spread it and stay in sync with pricing/token changes.
+ */
+const GLM_5_2: ModelDefinition = {
+	id: 'glm-5.2',
+	name: 'GLM-5.2',
+	family: 'glm',
+	version: '5.2',
+	detail: 'Flagship coding and reasoning model',
+	// Copilot treats input + output as one shared context window.
+	maxInputTokens: 868_928,
+	maxOutputTokens: 131_072,
+	capabilities: {
+		toolCalling: GLM_TOOLS_LIMIT,
+		// The extension accepts images for this model through the transparent
+		// GLM-4.6V-Flash vision proxy before sending text to GLM-5.2.
+		imageInput: true,
+		thinking: true,
+	},
+	requiresThinkingParam: true,
+	supportsReasoningEffort: true,
+	// [FORK] No model-level default route/vision override here — fork
+	// preferences (china-anthropic + mcp vision) are applied via the
+	// "GLM: Apply Recommended Setup for GLM Coding Plan" command, which
+	// writes user-scope modelManagement overrides. Keeping built-in defaults
+	// aligned with upstream so international users / custom proxies are
+	// unaffected.
+	pricing: {
+		CNY: { cacheHitInput: 2, cacheMissInput: 8, output: 28 },
+		USD: { cacheHitInput: 0.26, cacheMissInput: 1.4, output: 4.4 },
+	},
+	priceCategory: 'high',
+};
+
 /** Available GLM models exposed through the language model provider. */
 export const MODELS: ModelDefinition[] = [
-	{
-		id: 'glm-5.2',
-		name: 'GLM-5.2',
-		family: 'glm',
-		version: '5.2',
-		detail: 'Flagship coding and reasoning model',
-		// Copilot treats input + output as one shared context window.
-		maxInputTokens: 868_928,
-		maxOutputTokens: 131_072,
-		capabilities: {
-			toolCalling: GLM_TOOLS_LIMIT,
-			// The extension accepts images for this model through the transparent
-			// GLM-4.6V-Flash vision proxy before sending text to GLM-5.2.
-			imageInput: true,
-			thinking: true,
-		},
-		requiresThinkingParam: true,
-		supportsReasoningEffort: true,
-		// [FORK] No model-level default route/vision override here — fork
-		// preferences (china-anthropic + mcp vision) are applied via the
-		// "GLM: Apply Recommended Setup for GLM Coding Plan" command, which
-		// writes user-scope modelManagement overrides. Keeping built-in defaults
-		// aligned with upstream so international users / custom proxies are
-		// unaffected.
-		pricing: {
-			CNY: { cacheHitInput: 2, cacheMissInput: 8, output: 28 },
-			USD: { cacheHitInput: 0.26, cacheMissInput: 1.4, output: 4.4 },
-		},
-		priceCategory: 'high',
-	},
+	GLM_5_2,
 	{
 		id: DEFAULT_GLM_VISION_MODEL_ID,
 		name: 'GLM-4.6V-Flash',
@@ -202,5 +208,22 @@ export const MODELS: ModelDefinition[] = [
 			USD: { cacheHitInput: 0.24, cacheMissInput: 1.2, output: 4 },
 		},
 		priceCategory: 'medium',
+	},
+	// [FORK] Claude agent variant: same flagship backend (glm-5.2), distinct picker
+	// id, targets the `claude-code` chat session via the VS Code proposed API
+	// `targetChatSessionType`. This makes the Claude option selectable in the Agent
+	// Picker for free Copilot accounts (the BYOK model-targeting escape hatch).
+	// Only emitted to VS Code when `glm-copilot.claudeSession.attach` is enabled.
+	// `defaultApiModelId` keeps requests routed to the real `glm-5.2` backend id
+	// despite the distinct picker id. A model carrying `targetChatSessionType` is
+	// excluded from the general chat picker, so regular GLM models are unaffected.
+	// Appended last so canonical built-in indices (0–3) are preserved.
+	{
+		...GLM_5_2,
+		id: 'glm-5.2-claude',
+		name: 'GLM-5.2 · Claude',
+		detail: 'GLM-5.2 exposed inside the Claude agent session',
+		defaultApiModelId: 'glm-5.2',
+		targetChatSessionType: 'claude-code',
 	},
 ];

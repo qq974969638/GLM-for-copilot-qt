@@ -238,6 +238,19 @@ export interface ModelDefinition {
 	supportedApiModes?: readonly ApiMode[];
 	defaultVisionMode?: ModelVisionMode;
 	supportsReasoningEffort?: boolean;
+	/**
+	 * [FORK] Fixed backend API model id to send to the endpoint when the picker
+	 * id differs (e.g. the Claude-session variant `glm-5.2-claude` must send
+	 * `glm-5.2`). Lower priority than the user-facing "API model ID" override.
+	 */
+	defaultApiModelId?: string;
+	/**
+	 * [FORK] VS Code proposed API (`LanguageModelChatInformation.targetChatSessionType`):
+	 * when set, the model is shown only in the picker of the matching chat session
+	 * type and is excluded from the general model picker. Must match a `type`
+	 * declared in a `chatSessions` contribution (e.g. `claude-code`).
+	 */
+	targetChatSessionType?: string;
 	pricing?: Readonly<Record<PricingCurrency, ModelPricing>>;
 	priceCategory?: PriceCategory;
 }

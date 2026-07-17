@@ -324,6 +324,14 @@
             "experimental"
           ]
         },
+        "glm-copilot.claudeSession.attach": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%glm-copilot.config.claudeSession.attach.description%",
+          "tags": [
+            "experimental"
+          ]
+        },
         "glm-copilot.visionModel": {
           "type": "string",
           "default": "",

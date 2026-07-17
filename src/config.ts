@@ -509,9 +509,13 @@ export function getApiModelId(vscodeModelId: string, resource?: vscode.Uri): str
 	if (override) {
 		return override;
 	}
-	// No built-in model declares a fixed API id; the user-facing "API model ID"
-	// setting in the Manage Models panel covers the "picker id != endpoint id"
-	// case directly and takes precedence over any code-level default.
+	// [FORK] Fall back to a model's declared `defaultApiModelId` (e.g. the
+	// Claude-session variant `glm-5.2-claude` must send `glm-5.2` to the backend).
+	// The user-facing "API model ID" override above still takes precedence.
+	const modelDefault = findModelDefinition(vscodeModelId, resource)?.defaultApiModelId?.trim();
+	if (modelDefault) {
+		return modelDefault;
+	}
 	return vscodeModelId;
 }
 
@@ -629,6 +633,18 @@ export function getRequestDumpEnabled(): boolean {
 export function getStabilizeToolListEnabled(): boolean {
 	const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
 	return config.get<boolean>('experimental.stabilizeToolList', false);
+}
+
+/**
+ * [FORK] Whether to expose the Claude-session GLM variant. The variant targets
+ * the `claude-code` chat session (VS Code proposed API `targetChatSessionType`),
+ * which makes the Claude agent option selectable for free Copilot accounts.
+ * Off by default; emitting the variant is also gated by this in
+ * `provideLanguageModelChatInformation`.
+ */
+export function getClaudeSessionAttach(): boolean {
+	const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+	return config.get<boolean>('claudeSession.attach', false);
 }
 
 /**
