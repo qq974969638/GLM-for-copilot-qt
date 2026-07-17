@@ -27,8 +27,22 @@ export class GlmMcpServerProvider implements vscode.McpServerDefinitionProvider 
 	private readonly authManager: AuthManager;
 	private readonly onChangeEmitter = new vscode.EventEmitter<void>();
 
-	/** Built server cache, keyed by definition reference for resolve lookup. */
-	private builtByDefinition = new WeakMap<vscode.McpServerDefinition, BuiltServer>();
+	/**
+	 * Built server cache, keyed by definition LABEL (a stable string) for
+	 * resolve lookup.
+	 *
+	 * [FORK] Previously keyed by the definition object reference via WeakMap.
+	 * That is fragile: if VS Code ever passes back a different object instance
+	 * at resolve time (e.g. after serializing the definition across a process
+	 * boundary, or internally cloning it), the WeakMap lookup silently misses
+	 * and the server starts WITHOUT credential injection — built-in GLM MCP
+	 * servers then fail at tool-call time with missing-key errors that are
+	 * hard to diagnose. Using the label string as the join key makes lookup
+	 * immune to object identity changes, because `buildServerDefinitions`
+	 * already guarantees label uniqueness within a collection (collisions are
+	 * disambiguated by appending the stable config id).
+	 */
+	private readonly builtByLabel = new Map<string, BuiltServer>();
 
 	readonly onDidChangeMcpServerDefinitions = this.onChangeEmitter.event;
 
@@ -54,9 +68,12 @@ export class GlmMcpServerProvider implements vscode.McpServerDefinitionProvider 
 			const enabled = pickEnabledServers(merged);
 			const built = buildServerDefinitions(enabled);
 
-			// Index for O(1) lookup in resolveMcpServerDefinition.
+			// Rebuild the label -> built index each time provide is called, so
+			// stale entries from a previous config (e.g. a removed server) do
+			// not leak. Labels are unique within a collection by construction.
+			this.builtByLabel.clear();
 			for (const item of built) {
-				this.builtByDefinition.set(item.definition, item);
+				this.builtByLabel.set(item.definition.label, item);
 			}
 			return built.map((item) => item.definition);
 		} catch (error) {
@@ -70,9 +87,9 @@ export class GlmMcpServerProvider implements vscode.McpServerDefinitionProvider 
 		server: vscode.McpServerDefinition,
 		token: vscode.CancellationToken,
 	): Promise<vscode.McpServerDefinition | undefined> {
-		const built = this.builtByDefinition.get(server);
+		const built = this.builtByLabel.get(server.label);
 		if (!built) {
-			// Unknown definition — let VS Code start it as-is.
+			// Unknown label — let VS Code start it as-is.
 			return server;
 		}
 		try {
