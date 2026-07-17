@@ -76,10 +76,12 @@ describe('model metadata helpers', () => {
 	});
 
 	it('publishes built-in shared windows as Copilot input plus output budgets', () => {
-		// [FORK] 4 built-in models are active. glm-claude-opus-4.8 is declared but
-		// commented out in consts.ts (kept as a documented template for the
-		// china-anthropic bridge; enable by uncommenting). glm-5v-turbo no longer
-		// has supportedApiModes (route unlocked).
+		// [FORK] 4 built-in models are active. The china-anthropic bridge model
+		// (formerly glm-claude-opus-4.8) was removed in PR #14 fix and is not
+		// coming back; if a similar model is needed, add it as a built-in in
+		// consts.ts and let the user map its endpoint id via the "API model ID"
+		// field in Manage Models. glm-5v-turbo no longer has supportedApiModes
+		// (route unlocked).
 		expect(MODELS.map((model) => model.maxInputTokens + model.maxOutputTokens)).toEqual([
 			1_000_000, 131_072, 200_000, 200_000,
 		]);
@@ -94,9 +96,6 @@ describe('model metadata helpers', () => {
 		});
 		// [FORK] glm-5v-turbo route restriction removed
 		expect(MODELS[2].supportedApiModes).toBeUndefined();
-		// [FORK] glm-claude-opus-4.8 is currently commented out in consts.ts;
-		// to re-enable, uncomment its block there and restore the MODELS[4]
-		// assertions (id/defaultApiModelId/defaultEndpointRoute/defaultVisionMode).
 	});
 
 	it('includes custom models in picker metadata with Vision Proxy image support', () => {

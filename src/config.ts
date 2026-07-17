@@ -509,9 +509,10 @@ export function getApiModelId(vscodeModelId: string, resource?: vscode.Uri): str
 	if (override) {
 		return override;
 	}
-	// [FORK] Fall back to the built-in model's defaultApiModelId when defined
-	// (e.g. glm-claude-opus-4.8 -> claude-opus-4.8), before using the ID itself.
-	return findModelDefinition(vscodeModelId, resource)?.defaultApiModelId ?? vscodeModelId;
+	// No built-in model declares a fixed API id; the user-facing "API model ID"
+	// setting in the Manage Models panel covers the "picker id != endpoint id"
+	// case directly and takes precedence over any code-level default.
+	return vscodeModelId;
 }
 
 export function getModelIdOverrides(resource?: vscode.Uri): Record<string, string> {
