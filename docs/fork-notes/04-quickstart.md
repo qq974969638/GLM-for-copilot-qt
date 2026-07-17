@@ -1,7 +1,5 @@
 # 快速上手(给上游作者 / 新接手者)
 
-> 用 5 分钟把本 fork 的两个核心特性(MCP 服务器、mcp 视觉模式)跑起来看看。
->
 > 前置:已配置好 GLM API Key(在插件里用 BYOK 方式登录过)。
 
 ---
@@ -27,34 +25,29 @@ pnpm watch            # 监听模式,边改边编译
 ### 测试
 
 ```bash
-pnpm test             # 246 个测试全通过
+pnpm test             # 363 个测试全通过
 pnpm lint             # 语法检查
 pnpm package          # 打包 vsix
 ```
 
 ---
 
-## 二、体验 MCP 服务器(5 分钟)
+## 二、体验 MCP 服务器
 
-内置了 4 个 GLM 官方 MCP 服务,装上即自动可用,无需额外配置。
+内置了 4 个 GLM 官方 MCP 服务。**为避免老用户升级后被惊扰(突然多 4 个活跃服务 + 自动发 Key),4 个服务默认全部关闭**,需手动启用。
 
-### 步骤
+### 一键启用(推荐)
 
-1. `F5` 启动 Extension Development Host
-2. 在 Host 窗口里打开 Copilot Chat,选一个 GLM 模型(如 `glm-5.2`)
-3. 点聊天框右下角的 **工具配置按钮**(或命令 `Chat: Configure Tools`)
-4. 你会看到 4 个已启用的工具:
-   - `zai-mcp-server`(视觉/图像分析)
-   - `web-search-prime`(联网搜索)
-   - `web-reader`(网页抓取)
-   - `zread`(深度阅读)
-5. 直接提问,例如:
-   - "搜索一下 VS Code 最新版本特性" → 触发 web-search-prime
-   - 把一张截图拖进聊天框问 "这个报错怎么解决" → 触发 mcp 视觉模式(见下)
+命令面板运行 **`GLM: Apply Recommended Setup for GLM Coding Plan`**(`glm-copilot.applyCodingPlanPreset`)。它会一次性完成:
+- 启用 4 个内置 MCP 服务
+- 把 `glm-5.2` 和 `glm-5-turbo` 切到 `mcp` 视觉模式
+- 打开 `experimental.stabilizeToolList`
 
-### 开关某个服务
+这是用户级 override,**不污染内置默认值**(内置默认与上游对齐)。
 
-在 Host 窗口的设置里搜 `glm-copilot.mcp`,每个服务有独立开关:
+### 逐个启用
+
+在 Host 窗口的设置里搜 `glm-copilot.mcp`,每个服务有独立 checkbox:
 
 ```jsonc
 "glm-copilot.mcp.zai-mcp-server.enabled": true,
@@ -63,13 +56,27 @@ pnpm package          # 打包 vsix
 "glm-copilot.mcp.zread.enabled": true
 ```
 
-**API Key**:无需单独配置。MCP 服务自动复用插件已保存的 GLM API Key(china-coding 通道)。
+### 验证
+
+1. `F5` 启动 Extension Development Host
+2. 在 Host 窗口里打开 Copilot Chat,选一个 GLM 模型(如 `glm-5.2`)
+3. 点聊天框右下角的 **工具配置按钮**(或命令 `Chat: Configure Tools`)
+4. 你会看到已启用的工具:
+   - `zai-mcp-server`(视觉/图像分析)
+   - `web-search-prime`(联网搜索)
+   - `web-reader`(网页抓取)
+   - `zread`(深度阅读)
+5. 直接提问,例如:
+   - "搜索一下 VS Code 最新版本特性" → 触发 web-search-prime
+   - 把一张截图拖进聊天框问 "这个报错怎么解决" → 触发 mcp 视觉模式(见下)
+
+**API Key**:4 个内置 GLM 官方服务显式选择接收 Coding Plan Key(china-coding 通道),复用插件已保存的 GLM API Key,**无需单独配置**。自定义 MCP 服务**默认不注入任何凭证**,必须显式设 `injectApiKey: true` 才会注入(防止 BYOK Key 泄露给第三方进程/URL)。
 
 ---
 
-## 三、体验 mcp 视觉模式(核心创新)
+## 三、体验 mcp 视觉模式
 
-`glm-5.2` 和 `glm-5-turbo` 默认就是 `mcp` 视觉模式。
+fork 的内置模型默认与上游对齐(glm-5.2 / glm-5-turbo 默认 `proxy`)。要体验 `mcp` 模式,运行上节的 **`GLM: Apply Recommended Setup for GLM Coding Plan`** 命令,或手动在模型管理面板把某模型切到 `mcp`。
 
 ### 它和上游的 `proxy` / `native` 有什么不同
 
@@ -81,22 +88,23 @@ pnpm package          # 打包 vsix
 
 ### 试一试
 
-1. 确保 `zai-mcp-server` 开关是开的(默认开)
+1. 运行 `GLM: Apply Recommended Setup for GLM Coding Plan`(或手动启用 `zai-mcp-server` + 把 `glm-5.2` 切到 `mcp`)
 2. 选 `glm-5.2` 模型
 3. 把一张 UI 截图拖进聊天框
 4. 问:"把这个界面用代码实现出来" → 模型会调用 `analyze_image` 读图后写代码
 
 你会看到对话里出现 `[Image attached at local file: ...]`,模型按需调用图像工具读取,而不是把整张图塞进上下文。
 
+> ⚠️ **mcp 模式依赖工具调用**。如果某模型在 `mcp` 模式但禁用了工具调用(`toolCalling: false`)、且请求又带了图片,请求会被明确报错拒绝(否则图片会被静默丢失)。纯文本请求不受影响。
+
 ### 切换某模型的视觉模式
 
 打开模型管理面板(命令面板搜 `GLM`),每个模型可单独选 `proxy` / `native` / `mcp`。
 
-### 一键重置为 fork 默认值
+### 重置为默认值 / 清理存储图片
 
-命令:`GLM: Reset to Defaults`
-
-清除用户级的 `modelManagement`、`stabilizeToolList`、`mcp.*`、提示词覆盖,让 fork 的默认值生效。**不清除 API Key,不动 workspace 级配置。** 主要用于老用户升级后拿不到新默认值的情况。
+- `GLM: Reset to Defaults` — 清除用户级的 `modelManagement`、`stabilizeToolList`、`mcp.*`、提示词覆盖,让默认值生效。**不清除 API Key,不动 workspace 级配置。**
+- `GLM: Clean Up Stored Images` — 删除所有 mcp 模式落盘的图片(配合 `glm-copilot.mcp.imageCleanupMode`:`manual` 默认不自动删,`ttl-7d` 激活时删 7 天前的)。
 
 ---
 
@@ -125,4 +133,3 @@ pnpm package          # 打包 vsix
 
 ---
 
-*有问题欢迎在 PR 下留言。*
