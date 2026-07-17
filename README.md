@@ -46,6 +46,17 @@ This keeps GLM-5.2 focused on coding/reasoning while GLM-4.6V-Flash handles mult
   <img src="resources/screenshots/03-vision.png" alt="Dropping an image into Copilot Chat and GLM responding to it via the vision proxy" width="800">
 </p>
 
+### MCP Server Integration
+
+The extension can register MCP (Model Context Protocol) servers with Copilot, giving chat agents additional tools such as web search, page reading, deep reading, and image analysis.
+
+- **Built-in GLM official servers** — four first-party MCP servers ship with the extension: ZAI (aggregated, includes vision), Web Search Prime, Web Reader, and Zread. They are **disabled by default** so existing users are not surprised on upgrade; enable them individually in Settings, or all at once via the preset command below.
+- **One-click Coding Plan setup** — run **GLM: Apply Recommended Setup for GLM Coding Plan** to configure everything the Coding Plan expects in one step: `glm-5.2` and `glm-5-turbo` switch to `mcp` vision mode, the four built-in MCP servers are enabled, and tool-list stabilization is turned on.
+- **`mcp` vision mode** — a third per-model image mode alongside `proxy` and `native`. Images are persisted to local files and the model is told their paths; an image-capable MCP tool reads them back on demand. This is designed for text-only models on the Anthropic-compatible endpoint that cannot accept base64 directly. If a model is in `mcp` mode but tool calling is disabled while the request carries images, the request is rejected with a clear error (images would otherwise be silently lost).
+- **API key safety** — built-in servers explicitly opt in to receive the Coding Plan key (the `china-coding` channel); user-defined servers default to **no** credential injection and must set `injectApiKey: true` to opt in. Each server can pin a credential channel or fall back to the workspace's default connection.
+- **Custom servers** — add your own stdio or HTTP MCP servers under `glm-copilot.mcp.servers`. The configuration object mirrors the standard `.vscode/mcp.json` shape.
+- **Image cleanup** — stored images live under the extension's global storage. Use `glm-copilot.mcp.imageCleanupMode` (`manual` default, or `ttl-7d`) to control automatic cleanup, and **GLM: Clean Up Stored Images** to purge them on demand.
+
 ### Thinking Mode with Reasoning Effort Control
 
 Full support for GLM's `reasoning_content`. Use Copilot Chat's native model picker menu to choose `none` (off), `high` (balanced), or `max` (default deep reasoning for hard agent tasks).

@@ -213,4 +213,40 @@ if (visionMode === 'mcp') { ... }
 
 ---
 
+## 十一、[2026-07-17] 测试覆盖补全(进行中)
+
+针对上游 PR #14 review 中"新增的 MCP provider 和 mcp 图片链路基本没有测试覆盖"的短板,分阶段补测试。
+
+### 阶段一(已完成,4 个 commit)
+
+| Commit | 文件 | 用例数 | 覆盖 |
+|--------|------|--------|------|
+| `09310e1` | `test/mcp/build.test.ts` | 23 | buildServerDefinitions(stdio/http 形状、version 派生、无效配置跳过)、label 去重(PR#6)、resolveAuthEnvKey、wantsApiKeyInjection opt-in(PR#2)、内置服务健全性 |
+| `fae6523` | `test/mcp/resolve.test.ts` | 16 | resolveServerCredentialChannel(PR#3:显式 pin/回退默认/forward resource)、注入 opt-in、stdio env 注入、http Bearer 注入、无 key 返回 undefined、通道回退端到端(国际用户/内置钉死) |
+| `c29b47b` | `test/provider/vision/image-store.test.ts` | 24 | storeImage 格式直通(PR#10)、content-addressable 复用(PR#7)、gif/webp 拒绝与转换、>5MiB 缩放、cleanupAllStoredImages、runAutomaticCleanup(manual/ttl-7d)、buildImagePromptText、getImageCleanupMode |
+
+**阶段一同步改动**:
+- `test/support/vscode.mock.ts`:新增 `McpStdioServerDefinition` / `McpHttpServerDefinition` mock 类(支持 `instanceof`,可变 env/headers)
+
+**阶段一验证状态**:`tsc --noEmit` 零错误;`vitest run` 309/309 通过(原 246);`vp lint` 零 warning/error;`vp fmt --check` 全部通过。
+
+### 阶段二(待办)
+
+| # | 文件 | 覆盖点 | 关联 PR 反馈 |
+|---|------|--------|------------|
+| 1 | `test/mcp/merge.test.ts` | mergeMcpServers(内置字段级覆盖、用户 enabled 被忽略走 checkbox、自定义服务有效性校验)、pickEnabledServers | 配套 |
+| 2 | `test/provider/vision/resolve.mcp.test.ts` | stripImagesForMcpMode 原位替换保序(PR#8)、文件路径 `\n` 分隔、存储失败走 unavailable marker、多图编号 | PR#4 #8 |
+| 3 | `test/provider/request.mcp.test.ts` | prepareChatRequest 入口校验:mcp+无工具+有图抛错、mcp+无工具+纯文本不抛错、mcp+有工具+有图不抛错 | PR#4 |
+| 4 | `test/runtime/commands.test.ts`(扩展) | applyCodingPlanPreset 写正确 overrides、cleanupStoredImages 调用清理、resetToDefaults 清理列表含 imageCleanupMode | 配套 |
+| 5 | `test/mcp/provider.test.ts`(可选) | GlmMcpServerProvider 的 provide→resolve 链路、label 索引查找、变更通知 | 配套 |
+
+### 本节相关 commit(commit 1/2 不属测试范畴,但同期完成)
+
+| Commit | 内容 |
+|--------|------|
+| `1aeea75` | 删除冗余的 `defaultApiModelId` 字段(与"API 模型 ID"设置项功能重复) |
+| `55dea61` | MCP provider 的 resolve 索引从 WeakMap(对象引用)改为 Map(label 字符串),避免跨边界丢 key |
+
+---
+
 *本文档随 fork 演进持续更新。新增改动请同步更新对应章节,并在提交信息里引用本文档。*

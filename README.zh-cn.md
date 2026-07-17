@@ -46,6 +46,17 @@
   <img src="resources/screenshots/03-vision.png" alt="将图片拖入 Copilot Chat，GLM 通过视觉代理响应" width="800">
 </p>
 
+### MCP 服务器集成
+
+本扩展可向 Copilot 注册 MCP（Model Context Protocol）服务器，为聊天 Agent 提供额外工具，例如网页搜索、网页阅读、深度阅读和图像分析。
+
+- **内置 GLM 官方服务器** — 扩展自带四个官方 MCP 服务器：ZAI（聚合，含视觉）、Web Search Prime、Web Reader 和 Zread。**默认全部关闭**，以免老用户升级时被惊扰；可在设置中逐个启用，或用下方预设命令一次性启用。
+- **Coding Plan 一键配置** — 运行 **GLM: 为 GLM Coding Plan 套餐应用推荐配置**，一次性写好 Coding Plan 所需的全部设置：`glm-5.2` 和 `glm-5-turbo` 切到 `mcp` 视觉模式、启用四个内置 MCP 服务器、打开工具列表稳定开关。
+- **`mcp` 视觉模式** — 在 `proxy` 和 `native` 之外的第三种按模型可选的图片模式。图片会被存到本地文件，模型被告知文件路径；由具备图像能力的 MCP 工具按需读取。专为走 Anthropic 兼容端点、无法直接接收 base64 的纯文本模型设计。若某模型处于 `mcp` 模式但禁用了工具调用、且请求中又带了图片，请求会被明确报错拒绝（否则图片会被静默丢失）。
+- **API Key 安全** — 内置服务器显式选择接收 Coding Plan Key（`china-coding` 通道）；自定义服务器**默认不注入**任何凭证，需显式设置 `injectApiKey: true` 才会注入。每个服务器可钉死凭证通道，或回退到工作区的默认连接通道。
+- **自定义服务器** — 在 `glm-copilot.mcp.servers` 下添加你自己的 stdio 或 HTTP MCP 服务器，配置对象与标准 `.vscode/mcp.json` 形状一致。
+- **图片清理** — 存储的图片位于扩展的 globalStorage 下。用 `glm-copilot.mcp.imageCleanupMode`（默认 `manual`，或 `ttl-7d`）控制自动清理策略，用 **GLM: 清理已存储的图片** 命令按需清理。
+
 ### 思考模式与推理深度控制
 
 完整支持 GLM 的 `reasoning_content`。通过 Copilot Chat 模型选择器的菜单选择 `停用`、`标准`（均衡，默认）或 `深度`（适用于复杂 Agent 任务）。
