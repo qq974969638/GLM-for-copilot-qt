@@ -133,6 +133,11 @@ let lastStatusBarItem: Record<string, unknown> | undefined;
 let quickPickSelectionLabel: string | undefined;
 let inputBoxValue: string | undefined;
 let activeTextEditorUri: Uri | undefined;
+// When set, showWarningMessage returns this value (simulates the user
+// clicking a specific button on a modal warning, e.g. the 'Apply' button on
+// the Coding Plan preset confirmation). When undefined, returns undefined
+// (simulates dismissing the dialog without choosing a button).
+let warningMessageButton: string | undefined;
 const activeTextEditorEmitter = new EventEmitter<{ document: { uri: Uri } } | undefined>();
 const workspaceFoldersEmitter = new EventEmitter<unknown>();
 let lastWebviewPanel: MockWebviewPanel | undefined;
@@ -165,6 +170,10 @@ export function __setInputBoxValue(value: string | undefined): void {
 	inputBoxValue = value;
 }
 
+export function __setWarningMessageButton(button: string | undefined): void {
+	warningMessageButton = button;
+}
+
 export function __getWindowMessages(): {
 	information: readonly string[];
 	warning: readonly string[];
@@ -183,6 +192,7 @@ export function __resetCommandState(): void {
 	lastStatusBarItem = undefined;
 	quickPickSelectionLabel = undefined;
 	inputBoxValue = undefined;
+	warningMessageButton = undefined;
 	activeTextEditorUri = undefined;
 	lastWebviewPanel = undefined;
 	informationMessages.length = 0;
@@ -474,7 +484,7 @@ export const window = {
 	},
 	async showWarningMessage(message: string): Promise<string | undefined> {
 		warningMessages.push(message);
-		return undefined;
+		return warningMessageButton;
 	},
 	async showErrorMessage(message: string): Promise<string | undefined> {
 		errorMessages.push(message);
