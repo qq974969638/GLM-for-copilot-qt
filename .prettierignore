@@ -1,0 +1,6 @@
+# Keep these JSON files aligned with upstream's 2-space formatting so PR diffs
+# stay minimal (upstream uses 2-space; the project's default formatter uses
+# tabs, which would make the whole file appear rewritten in diffs).
+package.json
+package.nls.json
+package.nls.zh-cn.json
