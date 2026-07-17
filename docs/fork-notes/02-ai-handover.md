@@ -230,15 +230,20 @@ if (visionMode === 'mcp') { ... }
 
 **阶段一验证状态**:`tsc --noEmit` 零错误;`vitest run` 309/309 通过(原 246);`vp lint` 零 warning/error;`vp fmt --check` 全部通过。
 
-### 阶段二(待办)
+### 阶段二(已完成,5 个 commit)
 
-| # | 文件 | 覆盖点 | 关联 PR 反馈 |
-|---|------|--------|------------|
-| 1 | `test/mcp/merge.test.ts` | mergeMcpServers(内置字段级覆盖、用户 enabled 被忽略走 checkbox、自定义服务有效性校验)、pickEnabledServers | 配套 |
-| 2 | `test/provider/vision/resolve.mcp.test.ts` | stripImagesForMcpMode 原位替换保序(PR#8)、文件路径 `\n` 分隔、存储失败走 unavailable marker、多图编号 | PR#4 #8 |
-| 3 | `test/provider/request.mcp.test.ts` | prepareChatRequest 入口校验:mcp+无工具+有图抛错、mcp+无工具+纯文本不抛错、mcp+有工具+有图不抛错 | PR#4 |
-| 4 | `test/runtime/commands.test.ts`(扩展) | applyCodingPlanPreset 写正确 overrides、cleanupStoredImages 调用清理、resetToDefaults 清理列表含 imageCleanupMode | 配套 |
-| 5 | `test/mcp/provider.test.ts`(可选) | GlmMcpServerProvider 的 provide→resolve 链路、label 索引查找、变更通知 | 配套 |
+| Commit | 文件 | 用例数 | 覆盖 |
+|--------|------|--------|------|
+| `a1d922f` | `test/mcp/merge.test.ts` | 20 | mergeMcpServers(内置字段级覆盖、用户 enabled 被忽略走 checkbox、自定义服务有效性校验、内置 id 不可被自定义服务覆盖)、pickEnabledServers(enabled!==false 过滤)、集成(checkbox 启用的内置 + 有效自定义 → picked) | 配套 |
+| `58ed530` | `test/provider/vision/resolve.mcp.test.ts` | 9 | stripImagesForMcpMode 原位替换保序(PR#8)、文件路径 `\n` 分隔、存储失败走 unavailable marker、多图"Image n of m"编号、跨消息编号重置、内容寻址复用 | PR#4 #8 |
+| `401e83e` | `test/provider/request.test.ts`(扩展) | 5(新增) | prepareChatRequest 入口守卫(PR#4):mcp+无工具+有图抛错、mcp+无工具+纯文本不抛错、mcp+capability 开但 options.tools 空抛错、mcp+有工具+有图正常剥离、native/proxy 不触发守卫 | PR#4 |
+| `5b947fe` | `test/runtime/commands.test.ts`(扩展) | 10(新增) | resetToDefaults(取消/确认清理含 imageCleanupMode)、applyCodingPlanPreset(取消/确认启用 4 服务+stabilizeToolList/写 glm-5.2 与 glm-5-turbo overrides/保留既有覆盖)、cleanupStoredImages(取消/确认调用清理/抛错显示) | 配套 |
+| `43c4ee6` | `test/mcp/provider.test.ts` | 10 | GlmMcpServerProvider:provide 返回 built 定义/空数组容错/只暴露 enabled;resolve label 索引查找(commit 55dea61 回归守卫:VS Code 传回新对象实例仍命中)、未知 label 放行、每次 provide 重建索引(移除服务不再解析)、forward resource、抛错返回 undefined;notifyChanged 事件 | 配套 |
+
+**阶段二同步改动**:
+- `test/support/vscode.mock.ts`:新增 `__setWarningMessageButton` setter(模拟用户点击模态警告的按钮,如"重置/应用/删除"),`showWarningMessage` 返回该值;`__resetCommandState` 同步重置。此前 `showWarningMessage` 固定返回 undefined,导致 reset/preset/cleanup 命令的确认分支无法被测试覆盖。
+
+**阶段二验证状态**:`tsc --noEmit` 零错误;`vitest run` **363/363 通过**(阶段一 309 → 阶段二 363,共新增 54 个测试);`vp lint` 零 warning/error;`vp fmt --check` 全部通过。
 
 ### 本节相关 commit(commit 1/2 不属测试范畴,但同期完成)
 
@@ -246,6 +251,23 @@ if (visionMode === 'mcp') { ... }
 |--------|------|
 | `1aeea75` | 删除冗余的 `defaultApiModelId` 字段(与"API 模型 ID"设置项功能重复) |
 | `55dea61` | MCP provider 的 resolve 索引从 WeakMap(对象引用)改为 Map(label 字符串),避免跨边界丢 key |
+
+### 测试覆盖总结(阶段一 + 阶段二)
+
+| PR #14 反馈 | 覆盖该反馈的测试文件 |
+|------------|-------------------|
+| #2 自定义 MCP 默认注入 GLM Key | build.test(wantsApiKeyInjection opt-in)、resolve.test(注入分支) |
+| #3 MCP 凭证通道固定 china-coding | resolve.test(resolveServerCredentialChannel + 通道回退端到端) |
+| #4 mcp 模式在视觉工具可用前移除图片 | request.test(入口守卫四象限)、resolve.mcp.test(剥离 + unavailable marker) |
+| #6 同名 MCP label 解析错误 | build.test(label 去重冲突加后缀) |
+| #7 图片文件永久保留且反复重写 | image-store.test(content-addressable 复用、wx 不重写) |
+| #8 文本和图片顺序被破坏 | resolve.mcp.test(原位替换保序、`\n` 分隔) |
+| #10 落盘格式与内置视觉 MCP 不兼容 | image-store.test(格式检测、>5MiB 缩放、gif/webp 拒绝与转换) |
+| 配套:provider resolve 索引稳定性 | provider.test(label 索引查找回归守卫,对应 commit 55dea61) |
+| 配套:merge/pickEnabled 规则 | merge.test(checkbox 权威、自定义透传、内置 id 不可覆盖) |
+| 配套:三个 fork 命令 | commands.test(reset/preset/cleanup 全分支) |
+
+**结论**:PR #14 review 开头指出的"新增的 MCP provider 和 mcp 图片链路基本没有测试覆盖"短板已完全补齐。fork 的 MCP + mcp 视觉链路 + 三个 fork 命令现在都有针对性单元测试覆盖。
 
 ---
 
