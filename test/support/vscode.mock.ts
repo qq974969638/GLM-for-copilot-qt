@@ -157,7 +157,7 @@ export function __clearConfigurationValues(): void {
 	workspaceFolderConfigurationValues.clear();
 	mockWorkspaceFolders = undefined;
 	mockWorkspaceFile = undefined;
-	configurationUpdateFailure = undefined;
+	configurationUpdateFailures.length = 0;
 }
 
 export function __getOpenedExternal(): Uri | undefined {
@@ -263,9 +263,11 @@ export enum ConfigurationTarget {
 
 let mockWorkspaceFolders: Array<{ uri: Uri }> | undefined;
 let mockWorkspaceFile: Uri | undefined;
-let configurationUpdateFailure:
-	| { key: string; target?: ConfigurationTarget; message: string }
-	| undefined;
+const configurationUpdateFailures: Array<{
+	key: string;
+	target?: ConfigurationTarget;
+	message: string;
+}> = [];
 
 export function __setWorkspaceFolders(uris: readonly Uri[]): void {
 	mockWorkspaceFolders = uris.map((uri) => ({ uri }));
@@ -303,7 +305,7 @@ export function __setConfigurationUpdateFailure(
 	target?: ConfigurationTarget,
 	message = 'Configuration update failed',
 ): void {
-	configurationUpdateFailure = { key, target, message };
+	configurationUpdateFailures.push({ key, target, message });
 }
 
 function getConfigurationValuesForTarget(
@@ -396,12 +398,11 @@ export const workspace = {
 			},
 			async update(key: string, value: unknown, target?: ConfigurationTarget): Promise<void> {
 				const full = scopedKey(key);
-				if (
-					configurationUpdateFailure?.key === full &&
-					(configurationUpdateFailure.target === undefined ||
-						configurationUpdateFailure.target === target)
-				) {
-					throw new Error(configurationUpdateFailure.message);
+				const failure = configurationUpdateFailures.find(
+					(entry) => entry.key === full && (entry.target === undefined || entry.target === target),
+				);
+				if (failure) {
+					throw new Error(failure.message);
 				}
 				const values = getConfigurationValuesForTarget(target ?? ConfigurationTarget.Global, uri);
 				if (value === undefined) {
