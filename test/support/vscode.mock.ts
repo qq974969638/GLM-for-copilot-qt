@@ -71,6 +71,38 @@ export class ThemeIcon {
 	constructor(readonly id: string) {}
 }
 
+/**
+ * Minimal mock of VS Code's MCP server definitions.
+ *
+ * The real classes support `instanceof` checks against their class identity;
+ * the mock preserves that so `resolveServerDefinition` can branch on
+ * `definition instanceof McpStdioServerDefinition` / `McpHttpServerDefinition`.
+ * `env` and `headers` are mutable plain objects to mirror the real classes'
+ * in-place credential injection contract.
+ *
+ * Constructor signatures match what `buildServerDefinitions` calls:
+ *   new McpStdioServerDefinition(label, command, args, env, version)
+ *   new McpHttpServerDefinition(label, uri, headers, version)
+ */
+export class McpStdioServerDefinition {
+	constructor(
+		readonly label: string,
+		readonly command: string,
+		readonly args: readonly string[],
+		public env: Record<string, string>,
+		readonly version?: string,
+	) {}
+}
+
+export class McpHttpServerDefinition {
+	constructor(
+		readonly label: string,
+		readonly uri: Uri,
+		public headers: Record<string, string>,
+		readonly version?: string,
+	) {}
+}
+
 export class EventEmitter<T = void> {
 	private readonly listeners = new Set<(value: T) => void>();
 
@@ -518,6 +550,8 @@ const vscode = {
 	LanguageModelToolCallPart,
 	LanguageModelToolResultPart,
 	ThemeIcon,
+	McpStdioServerDefinition,
+	McpHttpServerDefinition,
 };
 
 export default vscode;
