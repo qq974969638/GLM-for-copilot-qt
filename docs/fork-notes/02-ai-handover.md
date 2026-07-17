@@ -205,11 +205,13 @@ if (visionMode === 'mcp') { ... }
 
 ## 九、未决事项 / 可改进点
 
-1. **MCP getApiKey 硬编码 china-coding**:当前 MCP 服务固定从 `china-coding` 通道取 key。国际用户可能需要从 international 通道取。可改为根据默认连接自动选择,或加配置项。
-2. ~~**mcp visionMode 的 imageHandlingPrompt 注入**~~ **[已否决 2026-07-16]**:曾想“仅当本请求有图才注入”,评估后否决——会打断 prompt cache(见坑7)。**结论:mcp 模式内保持每轮无条件注入**,只有 proxy/native 永不注入。无需再动。
-3. ~~**glm-claude-opus-4.8 的定价**~~ **[已完成 2026-07-16]**:已补 pricing/priceCategory 并与 GLM-5.2 完全对齐(CNY/USD/priceCategory/capabilities/token/thinking 全一致,差异仅 id 与通道)。同时修了 models.test.ts 窗口断言(见坑8)。
-4. **向原作者提交 MCP**:见 `01-mcp-proposal-for-upstream.md`,可拆分 MCP provider 部分单独提 PR。
-5. **glm-5.2 默认走 china-anthropic**:已给 glm-5.2 加内置 `defaultEndpointRoute:'china-anthropic'`(重置后保留)。⚠️ 待验证:Zhipu 的 `/api/anthropic` 网关是否接受 `glm-5.2` 这个模型 id(走 Anthropic 协议);若不认需回退或改用别名。glm-claude-opus-4.8 同端点能工作(它发 `claude-opus-4.8`)。
+> **[2026-07-17 更新]** 本节记录的是 fork 早期的决策状态,部分条目已在后续 commit 中解决或撤销。保留原文作为历史记录,每条前的标注反映最新状态。当前活跃的未决事项见标注。
+
+1. ~~**MCP getApiKey 硬编码 china-coding**~~ **[已解决 2026-07-17 PR#14 fix #3]**:原状态——"当前 MCP 服务固定从 `china-coding` 通道取 key。国际用户可能需要从 international 通道取。可改为根据默认连接自动选择,或加配置项。"**现状**:已新增 `credentialChannel` 字段;内置服务钉死 china-coding,自定义服务跟随工作区默认连接通道(支持国际用户)。`resolveServerDefinition` 新增 `resource` 参数。详见第十节第 3 条。
+2. ~~**mcp visionMode 的 imageHandlingPrompt 注入**~~ **[已否决 2026-07-16]**:曾想"仅当本请求有图才注入",评估后否决——会打断 prompt cache(见坑7)。**结论:mcp 模式内保持每轮无条件注入**,只有 proxy/native 永不注入。无需再动。
+3. ~~**glm-claude-opus-4.8 的定价**~~ **[已撤销 2026-07-17 PR#14 fix #5]**:原状态——"已补 pricing/priceCategory 并与 GLM-5.2 完全对齐"。**现状**:该模型已在 PR#14 fix 中**彻底删除**(非注释),consts.ts 和 package.json 均无残留。此条作废。同时,commit `1aeea75` 删除了为该模型而加的 `defaultApiModelId` 字段(冗余设计,见第十一节"本节相关 commit")。
+4. **向原作者提交 MCP**:见 `01-mcp-proposal-for-upstream.md`,可拆分 MCP provider 部分单独提 PR。**[2026-07-17 更新]** PR #14 第一次 review 收到 Request changes,本轮按 10 条意见完成修复 + 测试覆盖补全(见第十节、第十一节)。PR 策略:fork 保持完整,向上游只提精简 PR(MCP + visionMode,不含 Coding Plan 命令和模型路由 fork 偏好)。
+5. ~~**glm-5.2 默认走 china-anthropic**~~ **[已撤销 2026-07-17 PR#14 fix #1]**:原状态——"已给 glm-5.2 加内置 `defaultEndpointRoute:'china-anthropic'`(重置后保留)"。**现状**:按作者 P1 反馈,glm-5.2 的内置 `defaultEndpointRoute`/`defaultVisionMode` 已删除,fork 默认值与上游对齐(国际用户/企业代理不受影响)。Coding Plan 用户改用新增命令 `glm-copilot.applyCodingPlanPreset` 一键应用推荐配置(写用户级 override,不动内置定义)。原"⚠️ 待验证 Zhipu /api/anthropic 网关是否接受 glm-5.2 模型 id"也随之失效。
 
 ---
 
