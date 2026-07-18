@@ -220,7 +220,11 @@ export const MODELS: ModelDefinition[] = [
 	// Appended last so canonical built-in indices (0–3) are preserved.
 	{
 		...GLM_5_2,
-		id: 'glm-5.2-claude',
+		// [FORK/SPIKE B′] Claude-format id: passes the Copilot Claude host's
+		// parseClaudeModelId gate AND is a name z.ai/bigmodel's /api/anthropic
+		// endpoint recognizes. The patched Copilot session sends this id straight
+		// to GLM; GLM's endpoint maps it to a GLM model.
+		id: 'claude-sonnet-4-5',
 		name: 'GLM-5.2 · Claude',
 		detail: 'GLM-5.2 exposed inside the Claude agent session',
 		defaultApiModelId: 'glm-5.2',

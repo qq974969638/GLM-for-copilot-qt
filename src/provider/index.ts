@@ -8,6 +8,7 @@ import {
 	resolveModelConnection,
 } from '../config';
 import { API_KEY_SECRETS, CONFIG_SECTION } from '../consts';
+import { resolveAnthropicBaseUrl, resolveEndpointRegion } from '../endpoint'; // [FORK/SPIKE]
 import { t } from '../i18n';
 import { logger } from '../logger';
 import { ModelManagerPanel } from '../manager/panel';
@@ -121,6 +122,37 @@ export class GLMChatProvider implements vscode.LanguageModelChatProvider<ModelPi
 		);
 
 		void this.refreshUsageStatus();
+		void this.applyClaudeBridgeEnv();
+	}
+
+	/**
+	 * [FORK/SPIKE] Publish GLM's Anthropic-protocol endpoint + coding key into
+	 * process.env (GLM_ANTHROPIC_BASE_URL / GLM_ANTHROPIC_AUTH_TOKEN) so the
+	 * patched Copilot Claude session can repoint its Claude Code SDK at GLM.
+	 * No-op when no API key is configured. Region follows the default connection.
+	 */
+	private async applyClaudeBridgeEnv(): Promise<void> {
+		const resource = getActiveWorkspaceFolderResource();
+		const connection = resolveDefaultConnection(resource);
+		const apiKey = await this.authManager.getApiKey(connection.credentialChannel, resource);
+		if (!apiKey) {
+			return;
+		}
+		process.env.GLM_ANTHROPIC_BASE_URL = resolveAnthropicBaseUrl(
+			resolveEndpointRegion(connection.endpoint),
+		);
+		process.env.GLM_ANTHROPIC_AUTH_TOKEN = apiKey;
+		// [FORK/SPIKE] Force the request model to z.ai's recommended flagship
+		// (glm-5.2[1m] = GLM-5.2 with 1M context). Without this the patched
+		// Copilot session sends the picker's disguised Claude name, and z.ai's
+		// server-side mapping is opaque (may not be GLM-5.2 → quality drop).
+		process.env.GLM_ANTHROPIC_MODEL = 'glm-5.2[1m]';
+		// Match z.ai's official Claude Code template — sub-agent tiers + long ctx:
+		process.env.ANTHROPIC_DEFAULT_SONNET_MODEL = 'glm-5.2[1m]';
+		process.env.ANTHROPIC_DEFAULT_OPUS_MODEL = 'glm-5.2[1m]';
+		process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = 'glm-4.7';
+		process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = '1000000';
+		process.env.API_TIMEOUT_MS = '3000000';
 	}
 
 	// ---- Public commands ----

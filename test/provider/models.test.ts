@@ -101,7 +101,7 @@ describe('model metadata helpers', () => {
 	});
 
 	it('[FORK] exposes a Claude-session variant that targets claude-code and routes to glm-5.2', () => {
-		const variant = MODELS.find((model) => model.id === 'glm-5.2-claude');
+		const variant = MODELS.find((model) => model.id === 'claude-sonnet-4-5');
 		expect(variant).toBeDefined();
 		expect(variant).toMatchObject({
 			targetChatSessionType: 'claude-code',
