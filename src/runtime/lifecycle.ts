@@ -9,6 +9,7 @@ import { initializeDiagnostics } from './diagnostics';
 import { initImageStore } from '../provider/vision/image-store';
 import { registerMcp } from './mcp';
 import { registerProvider } from './provider';
+import { registerClaudeBridge } from '../claude-bridge'; // [FORK]
 import { showWelcomeIfNeeded } from './welcome';
 
 let activeProvider: GLMChatProvider | undefined;
@@ -34,6 +35,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			registerMcp(context, provider.authManager);
 		} catch (mcpError) {
 			logger.warn('MCP provider registration failed; model chat still available', mcpError);
+		}
+
+		// [FORK] Register the claude-bridge module (GLM-backed Claude session).
+		// Owns env injection + the applyPatch/restoreBundle/showStatus commands.
+		try {
+			registerClaudeBridge(context, provider);
+		} catch (bridgeError) {
+			logger.warn('claude-bridge registration failed; model chat still available', bridgeError);
 		}
 
 		void showWelcomeIfNeeded(context, provider).catch((error) => {

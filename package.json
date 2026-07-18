@@ -105,6 +105,18 @@
       {
         "command": "glm-copilot.cleanupStoredImages",
         "title": "%glm-copilot.command.cleanupStoredImages%"
+      },
+      {
+        "command": "glm-copilot.claudeBridge.applyPatch",
+        "title": "%glm-copilot.command.claudeBridge.applyPatch%"
+      },
+      {
+        "command": "glm-copilot.claudeBridge.restoreBundle",
+        "title": "%glm-copilot.command.claudeBridge.restoreBundle%"
+      },
+      {
+        "command": "glm-copilot.claudeBridge.showStatus",
+        "title": "%glm-copilot.command.claudeBridge.showStatus%"
       }
     ],
     "walkthroughs": [
@@ -328,6 +340,14 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "%glm-copilot.config.claudeSession.attach.description%",
+          "tags": [
+            "experimental"
+          ]
+        },
+        "glm-copilot.claudeBridge.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%glm-copilot.config.claudeBridge.enabled.description%",
           "tags": [
             "experimental"
           ]
