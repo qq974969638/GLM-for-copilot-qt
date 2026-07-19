@@ -1,30 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0](https://github.com/umbrella22/GLM-for-copilot/compare/v0.6.0...v0.7.0) (2026-07-18)
+
 
 ### Features
 
-- **MCP server integration:** the extension can now register MCP (Model Context Protocol) servers with Copilot, exposing additional tools (web search, page reading, deep reading, image analysis) to chat agents. Four GLM official servers ship built-in (ZAI, Web Search Prime, Web Reader, Zread) and custom stdio / HTTP servers can be added under `glm-copilot.mcp.servers`.
-- **`mcp` vision mode:** a third per-model image mode alongside `proxy` and `native`. Images are persisted to local files and an image-capable MCP tool reads them on demand — designed for text-only models on Anthropic-compatible endpoints that cannot accept base64 directly. Requests are rejected with a clear error if a `mcp`-mode model has tool calling disabled while carrying images.
-- **Coding Plan preset command:** `GLM: Apply Recommended Setup for GLM Coding Plan` configures everything the Coding Plan expects in one step (enables the four built-in MCP servers, switches `glm-5.2` and `glm-5-turbo` to `mcp` vision mode, turns on tool-list stabilization). Built-in MCP servers stay disabled by default so existing users are not surprised on upgrade.
-- **Per-server credential control:** built-in servers explicitly opt in to the `china-coding` key; user-defined servers default to **no** credential injection and must set `injectApiKey: true`. Each server can pin a credential channel or follow the workspace default connection, so international users are supported automatically.
-- **Image lifecycle management:** stored images live under extension global storage with content-addressable deduplication; `glm-copilot.mcp.imageCleanupMode` (`manual` default, or `ttl-7d`) controls automatic cleanup, and `GLM: Clean Up Stored Images` purges them on demand.
-- **Configuration reset command:** `GLM: Reset to Defaults` clears user-level overrides for model management, MCP servers, image-handling prompts, and stabilization — without touching API keys or workspace-scoped settings.
+* **mcp:** add MCP server provider + mcp vision mode ([339d0d1](https://github.com/umbrella22/GLM-for-copilot/commit/339d0d1001b6e0f61ce889791438d5d3776e0de3))
+
 
 ### Bug Fixes
 
-- **mcp resolve lookup stability:** the MCP provider now keys its built-server index by the definition label (a stable string) instead of the definition object reference, so credential injection no longer silently skips when VS Code passes back a different object instance at resolve time.
-- **label uniqueness:** duplicate MCP server labels are disambiguated by appending the stable config id, preventing the second server from resolving against the first one's URL/command/auth.
-- **input envelope for built-in vision MCP:** images are normalized (format detection via magic bytes, conversion to JPEG/PNG, ≤5 MiB resize) before being written to disk, matching the `@z_ai/mcp-server@0.1.4` input contract.
-- **image reuse:** storing an already-known image no longer truncates and rewrites the file (uses `wx`; refreshes mtime on reuse instead).
-- **text/image ordering:** the `mcp` pipeline replaces image parts in place by part index, preserving the original text/image interleaving instead of appending all image paths at the end.
-- **pinned npm version:** the built-in stdio MCP server runs `@z_ai/mcp-server@0.1.4` (version pinned for supply-chain safety) instead of floating `@z_ai/mcp-server`.
-
-### Tests
-
-- Added unit tests for the MCP build layer (`wantsApiKeyInjection` opt-in, label de-duplication, invalid-config skipping).
-- Added unit tests for the MCP resolve layer (credential-channel resolution, stdio env / http header injection, key-absent branches).
-- Added unit tests for the mcp-mode image store (format normalization, content-addressable reuse, size-budget enforcement, cleanup modes).
+* **mcp:** address [#15](https://github.com/umbrella22/GLM-for-copilot/issues/15) review findings F1-F7 ([b9eb154](https://github.com/umbrella22/GLM-for-copilot/commit/b9eb154bbf2f95291e5aacd313630e68519efb4d))
+* **mcp:** align public schema with parse capability ([#15](https://github.com/umbrella22/GLM-for-copilot/issues/15) F3) ([6fb3812](https://github.com/umbrella22/GLM-for-copilot/commit/6fb381220b99400b6810e76b4c6f95a402a82ce4))
+* **mcp:** correct MCP tool id format in image-capable detection ([#15](https://github.com/umbrella22/GLM-for-copilot/issues/15) F2 runtime) ([969773b](https://github.com/umbrella22/GLM-for-copilot/commit/969773b5d746371421fa1cb5c19c80575a0f87a2))
+* **mcp:** harden server and vision boundaries ([bb53f52](https://github.com/umbrella22/GLM-for-copilot/commit/bb53f52163d8d5e055a8a89829f0b446fe11980a))
 
 ## [0.6.0](https://github.com/umbrella22/GLM-for-copilot/compare/v0.5.2...v0.6.0) (2026-07-16)
 
